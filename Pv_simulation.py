@@ -19,7 +19,7 @@ def set_background():
 set_background()
 
 # === Interface utilisateur ===
-st.title("☀️ Simulateur Photovoltaïque Simple")
+st.title("☀️ Simulateur Photovoltaïque dynamique")
 
 type_pv = st.selectbox(
     "Type de panneau :",
