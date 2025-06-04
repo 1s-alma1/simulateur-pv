@@ -1,27 +1,31 @@
 
 import streamlit as st
-import pandas as pd
 import matplotlib.pyplot as plt
 
-# === Arrière-plan animé adapté au solaire ===
+# === Fond personnalisé + soleil animé ===
 def set_background():
     st.markdown(
-        f'''
+        '''
         <style>
-        .stApp {{
-            background-image: url("https://images.unsplash.com/photo-1584270354949-1a8abf5d19ae?auto=format&fit=crop&w=1470&q=80");
+        .stApp {
+            background-image: url("https://cdn.pixabay.com/photo/2017/08/06/00/07/solar-panels-2585405_1280.jpg");
             background-size: cover;
             background-attachment: fixed;
-        }}
+            color: white;
+        }
 
-        @keyframes fadeIn {{
-            0% {{ opacity: 0; }}
-            100% {{ opacity: 1; }}
-        }}
+        .sun {
+            font-size: 40px;
+            animation: pulse 2s infinite;
+            text-align: center;
+            padding: 10px;
+        }
 
-        .stApp * {{
-            animation: fadeIn 1.5s ease-in;
-        }}
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.4; }
+            100% { opacity: 1; }
+        }
         </style>
         ''',
         unsafe_allow_html=True
@@ -29,58 +33,72 @@ def set_background():
 
 set_background()
 
-# === Données de base ===
-base_irradiation = 1300  # moyenne Marseille
-consommation_maison = 8260  # kWh/an
+st.markdown('<div class="sun">☀️</div>', unsafe_allow_html=True)
 
-types_panneaux = {
-    "Monocristallin": {"rendement": 0.85, "cout_kwc": 4000},
-    "Polycristallin": {"rendement": 0.80, "cout_kwc": 3500},
-    "Amorphe": {"rendement": 0.65, "cout_kwc": 3000},
-    "Hétérojonction": {"rendement": 0.88, "cout_kwc": 5000},
-    "Bifacial": {"rendement": 0.90, "cout_kwc": 5500},
+# === Interface utilisateur ===
+st.title("🔆 Simulateur Photovoltaïque Créatif")
+
+type_pv = st.selectbox("Type de panneau :", [
+    "Monocristallin", "Polycristallin", "Amorphe", "Hétérojonction", "Bifacial"
+])
+rendements = {
+    "Monocristallin": 0.85,
+    "Polycristallin": 0.80,
+    "Amorphe": 0.65,
+    "Hétérojonction": 0.88,
+    "Bifacial": 0.92
+}
+couts_kwc = {
+    "Monocristallin": 4000,
+    "Polycristallin": 3500,
+    "Amorphe": 3000,
+    "Hétérojonction": 5000,
+    "Bifacial": 5500
 }
 
-conditions_meteo = {
+nb_panneaux = st.slider("Nombre de panneaux (400Wc)", 5, 30, 20)
+condition = st.selectbox("Conditions météo :", ["Ensoleillé", "Partiellement nuageux", "Nuageux", "Pluie"])
+facteurs_meteo = {
     "Ensoleillé": 1.0,
     "Partiellement nuageux": 0.85,
     "Nuageux": 0.65,
-    "Pluie": 0.40,
-    "Brume / pollution": 0.55
+    "Pluie": 0.4
 }
-
-# === Interface utilisateur ===
-st.title("🔆 Simulateur Photovoltaïque Avancé")
-
-type_choisi = st.selectbox("Type de panneau :", list(types_panneaux.keys()))
-nb_panneaux = st.slider("Nombre de panneaux :", 5, 30, 20)
-tarif_kwh = st.number_input("Tarif électricité (€/kWh)", 0.10, 0.50, 0.25, 0.01)
-condition = st.selectbox("Conditions météo simulées :", list(conditions_meteo.keys()))
+prix_kwh = st.number_input("Tarif électricité (€/kWh)", 0.10, 0.50, 0.25)
 
 # === Calculs ===
 puissance_kwc = nb_panneaux * 0.4
-rendement = types_panneaux[type_choisi]["rendement"]
-cout_kwc = types_panneaux[type_choisi]["cout_kwc"]
-facteur_meteo = conditions_meteo[condition]
-
-production = puissance_kwc * base_irradiation * rendement * facteur_meteo
-autoconsommation = min(production, consommation_maison)
-economie = autoconsommation * tarif_kwh
-investissement = cout_kwc * puissance_kwc
-roi = investissement / economie if economie > 0 else float("inf")
+irradiation = 1300
+prod_brute = puissance_kwc * irradiation * rendements[type_pv] * facteurs_meteo[condition]
+conso_maison = 8260
+auto_directe = min(prod_brute, conso_maison)
+economie = auto_directe * prix_kwh
+invest = puissance_kwc * couts_kwc[type_pv]
+roi = invest / economie if economie > 0 else float("inf")
+indice_perf = prod_brute / invest * 1000  # production par euro investi (kWh/1000€)
 
 # === Résultats ===
-st.subheader("📊 Résultats de Simulation")
-st.write(f"Puissance installée : {puissance_kwc:.1f} kWc")
-st.write(f"Production simulée (avec météo '{condition}') : {production:.0f} kWh/an")
-st.write(f"Autoconsommation estimée : {autoconsommation:.0f} kWh/an")
-st.write(f"Économie annuelle : {economie:.0f} €")
-st.write(f"Investissement total : {investissement:.0f} €")
-st.write(f"Retour sur investissement (ROI) : {roi:.1f} ans")
+st.subheader("📊 Résultats")
+st.write(f"Puissance installée : **{puissance_kwc:.1f} kWc**")
+st.write(f"Production estimée : **{prod_brute:.0f} kWh/an**")
+st.write(f"Autoconsommation : **{auto_directe:.0f} kWh/an**")
+st.write(f"Économie annuelle : **{economie:.0f} €**")
+st.write(f"Investissement total : **{invest:.0f} €**")
+st.write(f"Retour sur investissement (ROI) : **{roi:.1f} ans**")
+st.write(f"🔎 Indice de performance PV : **{indice_perf:.1f} kWh / 1000 € investi**")
+
+# === Recommandation intelligente
+if roi < 8:
+    st.success("✅ Excellent choix : retour rapide sur investissement !")
+elif roi <= 12:
+    st.warning("ℹ️ Choix correct mais peut être optimisé.")
+else:
+    st.error("❌ ROI trop long, essayez un autre type ou moins de panneaux.")
 
 # === Graphique
+labels = ["Autoconsommation", "Réseau"]
+values = [auto_directe, max(0, conso_maison - auto_directe)]
 fig, ax = plt.subplots()
-ax.bar(["Production", "Consommation"], [production, consommation_maison], color=["#4CAF50", "#2196F3"])
-ax.set_ylabel("kWh/an")
-ax.set_title("Production vs. Consommation")
+ax.pie(values, labels=labels, autopct="%1.1f%%", colors=["#4CAF50", "#2196F3"])
+ax.axis("equal")
 st.pyplot(fig)
